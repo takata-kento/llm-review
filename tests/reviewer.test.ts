@@ -1,10 +1,13 @@
 import { LLMReviewer } from '../src';
-import { GitHubClient } from '../src/github/client';
+import { createGitHubClient, GitHubClientType } from '../src/github/client';
 import { LLMClient } from '../src/llm/client';
 import { GitHubConfig, LLMConfig, ReviewConfig } from '../src/types';
 
 // GitHubClientとLLMClientをモック
-jest.mock('../src/github/client');
+jest.mock('../src/github/client', () => ({
+  createGitHubClient: jest.fn(),
+  GitHubClientType: jest.fn(),
+}));
 jest.mock('../src/llm/client');
 
 describe('LLMReviewer', () => {
@@ -36,8 +39,8 @@ describe('LLMReviewer', () => {
     // モックをリセット
     jest.clearAllMocks();
 
-    // GitHubClientのモックメソッドを設定
-    (GitHubClient as jest.Mock).mockImplementation(() => ({
+    // createGitHubClientのモック実装を設定
+    (createGitHubClient as jest.Mock).mockImplementation(() => ({
       getPullRequestInfo: jest.fn().mockResolvedValue({
         number: 123,
         title: 'Test PR',
@@ -90,13 +93,13 @@ describe('LLMReviewer', () => {
     // レビューを実行
     const result = await reviewer.reviewPullRequest();
 
-    // GitHubClientのメソッドが呼び出されたことを確認
-    expect(GitHubClient).toHaveBeenCalledWith(githubConfig);
-    const githubClientInstance = (GitHubClient as jest.Mock).mock.instances[0];
-    expect(githubClientInstance.getPullRequestInfo).toHaveBeenCalled();
-    expect(githubClientInstance.getChangedFiles).toHaveBeenCalled();
-    expect(githubClientInstance.getRepositoryStructure).toHaveBeenCalledWith('', 'main');
-    expect(githubClientInstance.createIssueComment).toHaveBeenCalled();
+    // createGitHubClientが呼び出されたことを確認
+    expect(createGitHubClient).toHaveBeenCalledWith(githubConfig);
+    const mockGitHubClient = (createGitHubClient as jest.Mock).mock.results[0].value;
+    expect(mockGitHubClient.getPullRequestInfo).toHaveBeenCalled();
+    expect(mockGitHubClient.getChangedFiles).toHaveBeenCalled();
+    expect(mockGitHubClient.getRepositoryStructure).toHaveBeenCalledWith('', 'main');
+    expect(mockGitHubClient.createIssueComment).toHaveBeenCalled();
 
     // LLMClientのメソッドが呼び出されたことを確認
     expect(LLMClient).toHaveBeenCalledWith(llmConfig);

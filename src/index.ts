@@ -1,4 +1,4 @@
-import { GitHubClient } from './github/client';
+import { createGitHubClient, GitHubClientType } from './github/client';
 import { LLMClient } from './llm/client';
 import { 
   REPOSITORY_STRUCTURE_PROMPT, 
@@ -12,7 +12,7 @@ import { GitHubConfig, LLMConfig, ReviewConfig, ReviewResult } from './types';
  * LLMを使用してプルリクエストをレビューするクラス
  */
 export class LLMReviewer {
-  private githubClient: GitHubClient;
+  private githubClient: GitHubClientType;
   private llmClient: LLMClient;
   private reviewConfig: ReviewConfig;
 
@@ -27,7 +27,7 @@ export class LLMReviewer {
     llmConfig: LLMConfig,
     reviewConfig: ReviewConfig = {}
   ) {
-    this.githubClient = new GitHubClient(githubConfig);
+    this.githubClient = createGitHubClient(githubConfig);
     this.llmClient = new LLMClient(llmConfig);
     this.reviewConfig = reviewConfig;
   }
