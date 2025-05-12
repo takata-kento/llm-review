@@ -187,9 +187,68 @@ ${file.patch ? `差分:\n\`\`\`\n${file.patch}\n\`\`\`` : ''}
    * @returns レビューコメント一覧
    */
   private extractComments(detailedReview: string, changedFiles: any[]): any[] {
-    // 実際の実装では、LLMの出力からコメントを抽出する処理を実装する
-    // 簡略化のため、ここでは空の配列を返す
-    return [];
+    const comments = [];
+    const fileCommentsSectionRegex = /## ファイル別コメント([\s\S]*?)(?=##|$)/;
+    const fileCommentsSectionMatch = detailedReview.match(fileCommentsSectionRegex);
+    
+    if (!fileCommentsSectionMatch) {
+      console.log('ファイル別コメントセクションが見つかりませんでした');
+      return [];
+    }
+    
+    const fileCommentsSection = fileCommentsSectionMatch[1];
+    const fileRegex = /### ([^\n]+)\n([\s\S]*?)(?=###|$)/g;
+    let fileMatch;
+    
+    while ((fileMatch = fileRegex.exec(fileCommentsSection)) !== null) {
+      const filePath = fileMatch[1].trim();
+      const fileComments = fileMatch[2];
+      
+      // 行コメントを抽出
+      const lineCommentRegex = /- \*\*([^*]+)\*\*: ([^\n]+)/g;
+      let lineMatch;
+      
+      while ((lineMatch = lineCommentRegex.exec(fileComments)) !== null) {
+        const lineInfo = lineMatch[1].trim();
+        const commentText = lineMatch[2].trim();
+
+        // 行番号を抽出
+        let line = null;
+        let position = null;
+
+        if (lineInfo.includes('行目')) {
+          // 単一行の場合
+          const lineNumberMatch = lineInfo.match(/(\d+)行目/);
+          if (lineNumberMatch) {
+            line = parseInt(lineNumberMatch[1], 10);
+          }
+        } else if (lineInfo.includes('-')) {
+          // 行範囲の場合（例：42-45行目）
+          const lineRangeMatch = lineInfo.match(/(\d+)-(\d+)行目/);
+          if (lineRangeMatch) {
+            // 範囲の最初の行を使用
+            line = parseInt(lineRangeMatch[1], 10);
+          }
+        }
+
+        // 対応するファイルを見つける
+        const targetFile = changedFiles.find(file => file.filename === filePath);
+        if (targetFile && line) {
+          // ファイルのパッチ情報から位置を特定
+          // 簡略化のため、行番号をそのまま使用
+          position = line;
+
+          comments.push({
+            path: filePath,
+            line,
+            position,
+            body: commentText
+          });
+        }
+      }
+    }
+
+    return comments;
   }
 
   /**
