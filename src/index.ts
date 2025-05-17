@@ -1,5 +1,5 @@
 import { createGitHubClient, GitHubClientType } from './github/client';
-import { LLMClient } from './llm/client';
+import { ILLMClient, createLLMClient } from './llm/client';
 import { 
   REPOSITORY_STRUCTURE_PROMPT, 
   CODE_REVIEW_PROMPT, 
@@ -13,7 +13,7 @@ import { GitHubConfig, LLMConfig, ReviewConfig, ReviewResult } from './types';
  */
 export class LLMReviewer {
   private githubClient: GitHubClientType;
-  private llmClient: LLMClient;
+  private llmClient: ILLMClient;
   private reviewConfig: ReviewConfig;
 
   /**
@@ -28,7 +28,7 @@ export class LLMReviewer {
     reviewConfig: ReviewConfig = {}
   ) {
     this.githubClient = createGitHubClient(githubConfig);
-    this.llmClient = new LLMClient(llmConfig);
+    this.llmClient = createLLMClient(llmConfig);
     this.reviewConfig = reviewConfig;
   }
 

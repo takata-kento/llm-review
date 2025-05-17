@@ -1,6 +1,7 @@
 import { LLMReviewer } from '../src';
-import { createGitHubClient, GitHubClientType } from '../src/github/client';
-import { LLMClient } from '../src/llm/client';
+import { createGitHubClient } from '../src/github/client';
+import { createLLMClient } from '../src/llm/client';
+import { AnthropicLLMClient } from '../src/llm/anthropic';
 import { GitHubConfig, LLMConfig, ReviewConfig } from '../src/types';
 
 // GitHubClientとLLMClientをモック
@@ -8,7 +9,13 @@ jest.mock('../src/github/client', () => ({
   createGitHubClient: jest.fn(),
   GitHubClientType: jest.fn(),
 }));
-jest.mock('../src/llm/client');
+jest.mock('../src/llm/anthropic');
+jest.mock('../src/llm/client', () => ({
+  createLLMClient: jest.fn((config) => {
+    const mockClient = new AnthropicLLMClient(config);
+    return mockClient;
+  })
+}));
 
 describe('LLMReviewer', () => {
   // テスト用の設定
@@ -35,7 +42,6 @@ describe('LLMReviewer', () => {
     performance: true,
   };
 
-  // LLMClientのモック関数をdescribeスコープで定義
   const generateFromTemplateMock = jest.fn();
 
   beforeEach(() => {
@@ -85,7 +91,7 @@ describe('LLMReviewer', () => {
     });
     
     // LLMClientのモック実装を設定
-    (LLMClient as jest.Mock).mockImplementation(() => ({
+    (AnthropicLLMClient as jest.Mock).mockImplementation(() => ({
       generateFromTemplate: generateFromTemplateMock,
     }));
   });
@@ -105,8 +111,8 @@ describe('LLMReviewer', () => {
     expect(mockGitHubClient.getRepositoryStructure).toHaveBeenCalledWith('', 'main');
     expect(mockGitHubClient.createIssueComment).toHaveBeenCalled();
 
-    // LLMClientのメソッドが呼び出されたことを確認
-    expect(LLMClient).toHaveBeenCalledWith(llmConfig);
+    // createLLMClientのメソッドが呼び出されたことを確認
+    expect(createLLMClient).toHaveBeenCalledWith(llmConfig);
     expect(generateFromTemplateMock).toHaveBeenCalled();
 
     // 結果を確認
