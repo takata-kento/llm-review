@@ -253,23 +253,27 @@ ${file.patch ? `差分:\n\`\`\`\n${file.patch}\n\`\`\`` : ''}
 
   /**
    * 全体評価を抽出する
+   * このメソッドは将来的に実装される予定です。現在はスタブとして空の文字列を返します。
+   * 
    * @param detailedReview 詳細なレビュー結果
    * @returns 全体評価
+   * @todo LLMの出力から全体評価を抽出する処理を実装する
    */
   private extractOverallAssessment(detailedReview: string): string {
-    // 実際の実装では、LLMの出力から全体評価を抽出する処理を実装する
-    // 簡略化のため、ここでは空の文字列を返す
+    // 将来的な実装のためのスタブ
     return '';
   }
 
   /**
    * 改善提案を抽出する
+   * このメソッドは将来的に実装される予定です。現在はスタブとして空の配列を返します。
+   * 
    * @param detailedReview 詳細なレビュー結果
    * @returns 改善提案一覧
+   * @todo LLMの出力から改善提案を抽出する処理を実装する
    */
   private extractSuggestedImprovements(detailedReview: string): string[] {
-    // 実際の実装では、LLMの出力から改善提案を抽出する処理を実装する
-    // 簡略化のため、ここでは空の配列を返す
+    // 将来的な実装のためのスタブ
     return [];
   }
 }

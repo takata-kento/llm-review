@@ -35,6 +35,9 @@ describe('LLMReviewer', () => {
     performance: true,
   };
 
+  // LLMClientのモック関数をdescribeスコープで定義
+  const generateFromTemplateMock = jest.fn();
+
   beforeEach(() => {
     // モックをリセット
     jest.clearAllMocks();
@@ -69,20 +72,21 @@ describe('LLMReviewer', () => {
       createIssueComment: jest.fn().mockResolvedValue(undefined),
     }));
 
-    // LLMClientのモックメソッドを設定
+    // LLMClientのモック関数の実装を設定
+    generateFromTemplateMock.mockImplementation((template, variables) => {
+      if (template.includes('REPOSITORY_STRUCTURE_PROMPT')) {
+        return Promise.resolve('Repository structure analysis');
+      } else if (template.includes('CODE_REVIEW_PROMPT')) {
+        return Promise.resolve('Code review result');
+      } else if (template.includes('SUMMARY_COMMENT_PROMPT')) {
+        return Promise.resolve('Summary comment');
+      }
+      return Promise.resolve('Default response');
+    });
+    
+    // LLMClientのモック実装を設定
     (LLMClient as jest.Mock).mockImplementation(() => ({
-      generateFromTemplate: jest.fn().mockImplementation((template, variables) => {
-        if (template.includes('REPOSITORY_STRUCTURE_PROMPT')) {
-          return Promise.resolve('Repository structure analysis');
-        } else if (template.includes('CODE_REVIEW_PROMPT')) {
-          return Promise.resolve('Code review result');
-        } else if (template.includes('SUMMARY_COMMENT_PROMPT')) {
-          return Promise.resolve('Summary comment');
-        }
-        return Promise.resolve('Default response');
-      }),
-      generate: jest.fn().mockResolvedValue('Test LLM response'),
-      generateWithSystemPrompt: jest.fn().mockResolvedValue('Test LLM response with system prompt'),
+      generateFromTemplate: generateFromTemplateMock,
     }));
   });
 
@@ -103,8 +107,7 @@ describe('LLMReviewer', () => {
 
     // LLMClientのメソッドが呼び出されたことを確認
     expect(LLMClient).toHaveBeenCalledWith(llmConfig);
-    const llmClientInstance = (LLMClient as jest.Mock).mock.instances[0];
-    expect(llmClientInstance.generateFromTemplate).toHaveBeenCalled();
+    expect(generateFromTemplateMock).toHaveBeenCalled();
 
     // 結果を確認
     expect(result).toHaveProperty('summary');

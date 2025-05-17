@@ -1,4 +1,7 @@
 import { ChatAnthropic } from '@langchain/anthropic';
+import { PromptTemplate } from '@langchain/core/prompts';
+import { RunnableSequence } from '@langchain/core/runnables';
+import { StringOutputParser } from '@langchain/core/output_parsers';
 import { LLMConfig } from '../types';
 
 /**
@@ -30,56 +33,20 @@ export class LLMClient {
    * @returns LLMの応答
    */
   async generateFromTemplate(template: string, variables: Record<string, string>): Promise<string> {
-    // 変数を置換してプロンプトを生成
-    let prompt = template;
-    for (const [key, value] of Object.entries(variables)) {
-      prompt = prompt.replace(new RegExp(`{${key}}`, 'g'), value);
-    }
-
-    const response = await this.client.invoke([
-      {
-        role: 'user',
-        content: prompt,
-      },
+    // PromptTemplateを作成
+    const promptTemplate = PromptTemplate.fromTemplate(template);
+    
+    // chainを構築
+    const chain = RunnableSequence.from([
+      promptTemplate,
+      this.client,
+      new StringOutputParser(),
     ]);
-
-    return response.content.toString();
+    
+    // chainを実行
+    const response = await chain.invoke(variables);
+    
+    return response;
   }
 
-  /**
-   * 直接プロンプトを使用してLLMに問い合わせる
-   * @param prompt プロンプト
-   * @returns LLMの応答
-   */
-  async generate(prompt: string): Promise<string> {
-    const response = await this.client.invoke([
-      {
-        role: 'user',
-        content: prompt,
-      },
-    ]);
-
-    return response.content.toString();
-  }
-
-  /**
-   * システムプロンプトとユーザープロンプトを使用してLLMに問い合わせる
-   * @param systemPrompt システムプロンプト
-   * @param userPrompt ユーザープロンプト
-   * @returns LLMの応答
-   */
-  async generateWithSystemPrompt(systemPrompt: string, userPrompt: string): Promise<string> {
-    const response = await this.client.invoke([
-      {
-        role: 'system',
-        content: systemPrompt,
-      },
-      {
-        role: 'user',
-        content: userPrompt,
-      },
-    ]);
-
-    return response.content.toString();
-  }
 }
