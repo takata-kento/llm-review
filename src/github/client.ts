@@ -2,36 +2,13 @@ import { Octokit } from '@octokit/rest';
 import { GitHubConfig, ChangedFile, ReviewComment } from '../types';
 
 /**
- * GitHub APIクライアントの型定義
- */
-export type GitHubClientType = {
-  getPullRequestInfo: () => Promise<any>;
-  getChangedFiles: () => Promise<ChangedFile[]>;
-  getFileContent: (filePath: string, ref: string) => Promise<string>;
-  getRepositoryStructure: (path: string, ref: string) => Promise<string[]>;
-  createReviewComments: (comments: ReviewComment[]) => Promise<void>;
-  createIssueComment: (body: string) => Promise<void>;
-};
-
-/**
- * Octokitインスタンスを作成する
- * @param token GitHub APIトークン
- * @returns Octokitインスタンス
- */
-const createOctokit = (token: string): Octokit => {
-  return new Octokit({
-    auth: token,
-  });
-};
-
-/**
  * プルリクエスト情報を取得する
+ * @param octokit Octokitインスタンス
  * @param config GitHub API設定
- * @returns プルリクエスト情報を取得する関数
+ * @returns プルリクエスト情報
  */
-export const getPullRequestInfo = async (config: GitHubConfig) => {
-  const { token, owner, repo, pullRequestNumber } = config;
-  const octokit = createOctokit(token);
+export const getPullRequestInfo = async (octokit: Octokit, config: GitHubConfig) => {
+  const { owner, repo, pullRequestNumber } = config;
 
   try {
     const { data: pullRequest } = await octokit.pulls.get({
@@ -52,9 +29,8 @@ export const getPullRequestInfo = async (config: GitHubConfig) => {
  * @param config GitHub API設定
  * @returns 変更ファイル一覧
  */
-export const getChangedFiles = async (config: GitHubConfig): Promise<ChangedFile[]> => {
-  const { token, owner, repo, pullRequestNumber } = config;
-  const octokit = createOctokit(token);
+export const getChangedFiles = async (octokit: Octokit, config: GitHubConfig): Promise<ChangedFile[]> => {
+  const { owner, repo, pullRequestNumber } = config;
 
   try {
     const { data: files } = await octokit.pulls.listFiles({
@@ -92,12 +68,12 @@ const decodeFileContent = (content: string, encoding: string): string => {
  * @returns ファイルの内容
  */
 export const getFileContent = async (
+  octokit: Octokit,
   config: GitHubConfig,
   filePath: string,
   ref: string
 ): Promise<string> => {
-  const { token, owner, repo } = config;
-  const octokit = createOctokit(token);
+  const { owner, repo } = config;
 
   try {
     const { data } = await octokit.repos.getContent({
@@ -178,11 +154,11 @@ const getRepositoryStructureRecursive = async (
  * @returns ディレクトリ内のファイル一覧
  */
 export const getRepositoryStructure = async (
+  octokit: Octokit,
   config: GitHubConfig,
   path: string = '',
   ref: string
 ): Promise<string[]> => {
-  const octokit = createOctokit(config.token);
   return getRepositoryStructureRecursive(config, octokit, path, ref);
 };
 
@@ -206,11 +182,11 @@ const prepareReviewComment = (comment: ReviewComment) => ({
  * @returns 投稿結果
  */
 export const createReviewComments = async (
+  octokit: Octokit,
   config: GitHubConfig,
   comments: ReviewComment[]
 ): Promise<void> => {
-  const { token, owner, repo, pullRequestNumber } = config;
-  const octokit = createOctokit(token);
+  const { owner, repo, pullRequestNumber } = config;
 
   try {
     // コメントを変換
@@ -237,11 +213,11 @@ export const createReviewComments = async (
  * @returns 投稿結果
  */
 export const createIssueComment = async (
+  octokit: Octokit,
   config: GitHubConfig,
   body: string
 ): Promise<void> => {
-  const { token, owner, repo, pullRequestNumber } = config;
-  const octokit = createOctokit(token);
+  const { owner, repo, pullRequestNumber } = config;
 
   try {
     await octokit.issues.createComment({
@@ -255,16 +231,3 @@ export const createIssueComment = async (
     throw new Error('Failed to create issue comment');
   }
 };
-
-/**
- * GitHub APIクライアント関数をまとめたオブジェクト
- * 既存のコードとの互換性のために提供
- */
-export const createGitHubClient = (config: GitHubConfig) => ({
-  getPullRequestInfo: () => getPullRequestInfo(config),
-  getChangedFiles: () => getChangedFiles(config),
-  getFileContent: (filePath: string, ref: string) => getFileContent(config, filePath, ref),
-  getRepositoryStructure: (path: string = '', ref: string) => getRepositoryStructure(config, path, ref),
-  createReviewComments: (comments: ReviewComment[]) => createReviewComments(config, comments),
-  createIssueComment: (body: string) => createIssueComment(config, body),
-});

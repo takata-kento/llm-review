@@ -1,4 +1,4 @@
-import { createGitHubClient, GitHubClientType } from './github/client';
+import { getPullRequestInfo, getChangedFiles, getRepositoryStructure, getFileContent, createReviewComments, createIssueComment } from './github/client';
 import { ILLMClient, createLLMClient } from './llm/client';
 import { 
   REPOSITORY_STRUCTURE_PROMPT, 
@@ -7,12 +7,14 @@ import {
   generateReviewFocus 
 } from './llm/prompts';
 import { GitHubConfig, LLMConfig, ReviewConfig, ReviewResult } from './types';
+import { Octokit } from '@octokit/rest';
 
 /**
  * LLMを使用してプルリクエストをレビューするクラス
  */
 export class LLMReviewer {
-  private githubClient: GitHubClientType;
+  private githubConfig: GitHubConfig;
+  private octokit: any;
   private llmClient: ILLMClient;
   private reviewConfig: ReviewConfig;
 
@@ -27,7 +29,8 @@ export class LLMReviewer {
     llmConfig: LLMConfig,
     reviewConfig: ReviewConfig = {}
   ) {
-    this.githubClient = createGitHubClient(githubConfig);
+    this.githubConfig = githubConfig;
+    this.octokit = new Octokit({ auth: githubConfig.token });
     this.llmClient = createLLMClient(llmConfig);
     this.reviewConfig = reviewConfig;
   }
@@ -40,16 +43,16 @@ export class LLMReviewer {
     console.log('プルリクエストのレビューを開始します...');
 
     // プルリクエスト情報を取得
-    const pullRequest = await this.githubClient.getPullRequestInfo();
+    const pullRequest = await getPullRequestInfo(this.octokit, this.githubConfig);
     console.log(`プルリクエスト #${pullRequest.number} の情報を取得しました`);
 
     // 変更ファイル一覧を取得
-    const changedFiles = await this.githubClient.getChangedFiles();
+    const changedFiles = await getChangedFiles(this.octokit, this.githubConfig);
     console.log(`変更ファイル数: ${changedFiles.length}`);
 
     // リポジトリ構造を分析
     const baseRef = pullRequest.base.ref;
-    const repositoryStructure = await this.githubClient.getRepositoryStructure('', baseRef);
+    const repositoryStructure = await getRepositoryStructure(this.octokit, this.githubConfig, '', baseRef);
     console.log('リポジトリ構造を取得しました');
 
     // リポジトリ構造をLLMに分析させる
@@ -87,12 +90,12 @@ export class LLMReviewer {
 
     // レビューコメントを投稿
     if (reviewResult.comments.length > 0) {
-      await this.githubClient.createReviewComments(reviewResult.comments);
+      await createReviewComments(this.octokit, this.githubConfig, reviewResult.comments);
       console.log(`${reviewResult.comments.length} 件のレビューコメントを投稿しました`);
     }
 
     // サマリーコメントを投稿
-    await this.githubClient.createIssueComment(reviewResult.summary);
+    await createIssueComment(this.octokit, this.githubConfig, reviewResult.summary);
     console.log('サマリーコメントを投稿しました');
 
     return reviewResult;

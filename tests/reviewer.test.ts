@@ -1,13 +1,32 @@
 import { LLMReviewer } from '../src';
-import { createGitHubClient } from '../src/github/client';
+import { getPullRequestInfo, getChangedFiles, getRepositoryStructure, getFileContent, createReviewComments, createIssueComment } from '../src/github/client';
 import { createLLMClient } from '../src/llm/client';
 import { AnthropicLLMClient } from '../src/llm/anthropic';
 import { GitHubConfig, LLMConfig, ReviewConfig } from '../src/types';
 
 // GitHubClientとLLMClientをモック
+jest.mock('@octokit/rest', () => ({
+  Octokit: jest.fn().mockImplementation(() => ({
+    pulls: {
+      get: jest.fn(),
+      listFiles: jest.fn(),
+      createReview: jest.fn(),
+    },
+    repos: {
+      getContent: jest.fn(),
+    },
+    issues: {
+      createComment: jest.fn(),
+    },
+  })),
+}));
 jest.mock('../src/github/client', () => ({
-  createGitHubClient: jest.fn(),
-  GitHubClientType: jest.fn(),
+  getPullRequestInfo: jest.fn(),
+  getChangedFiles: jest.fn(),
+  getRepositoryStructure: jest.fn(),
+  getFileContent: jest.fn(),
+  createReviewComments: jest.fn(),
+  createIssueComment: jest.fn(),
 }));
 jest.mock('../src/llm/anthropic');
 jest.mock('../src/llm/client', () => ({
@@ -48,35 +67,33 @@ describe('LLMReviewer', () => {
     // モックをリセット
     jest.clearAllMocks();
 
-    // createGitHubClientのモック実装を設定
-    (createGitHubClient as jest.Mock).mockImplementation(() => ({
-      getPullRequestInfo: jest.fn().mockResolvedValue({
-        number: 123,
-        title: 'Test PR',
-        body: 'Test PR description',
-        user: { login: 'test-user' },
-        head: { ref: 'feature-branch' },
-        base: { ref: 'main' },
-      }),
-      getChangedFiles: jest.fn().mockResolvedValue([
-        {
-          filename: 'test-file.ts',
-          status: 'modified',
-          additions: 10,
-          deletions: 5,
-          changes: 15,
-          patch: '@@ -1,5 +1,10 @@\n Test patch',
-        },
-      ]),
-      getRepositoryStructure: jest.fn().mockResolvedValue([
-        'src/index.ts',
-        'src/types/index.ts',
-        'README.md',
-      ]),
-      getFileContent: jest.fn().mockResolvedValue('Test file content'),
-      createReviewComments: jest.fn().mockResolvedValue(undefined),
-      createIssueComment: jest.fn().mockResolvedValue(undefined),
-    }));
+    // 各GitHubクライアント関数のモック実装を設定
+    (getPullRequestInfo as jest.Mock).mockResolvedValue({
+      number: 123,
+      title: 'Test PR',
+      body: 'Test PR description',
+      user: { login: 'test-user' },
+      head: { ref: 'feature-branch' },
+      base: { ref: 'main' },
+    });
+    (getChangedFiles as jest.Mock).mockResolvedValue([
+      {
+        filename: 'test-file.ts',
+        status: 'modified',
+        additions: 10,
+        deletions: 5,
+        changes: 15,
+        patch: '@@ -1,5 +1,10 @@\n Test patch',
+      },
+    ]);
+    (getRepositoryStructure as jest.Mock).mockResolvedValue([
+      'src/index.ts',
+      'src/types/index.ts',
+      'README.md',
+    ]);
+    (getFileContent as jest.Mock).mockResolvedValue('Test file content');
+    (createReviewComments as jest.Mock).mockResolvedValue(undefined);
+    (createIssueComment as jest.Mock).mockResolvedValue(undefined);
 
     // LLMClientのモック関数の実装を設定
     generateFromTemplateMock.mockImplementation((template, variables) => {
@@ -103,13 +120,11 @@ describe('LLMReviewer', () => {
     // レビューを実行
     const result = await reviewer.reviewPullRequest();
 
-    // createGitHubClientが呼び出されたことを確認
-    expect(createGitHubClient).toHaveBeenCalledWith(githubConfig);
-    const mockGitHubClient = (createGitHubClient as jest.Mock).mock.results[0].value;
-    expect(mockGitHubClient.getPullRequestInfo).toHaveBeenCalled();
-    expect(mockGitHubClient.getChangedFiles).toHaveBeenCalled();
-    expect(mockGitHubClient.getRepositoryStructure).toHaveBeenCalledWith('', 'main');
-    expect(mockGitHubClient.createIssueComment).toHaveBeenCalled();
+    // 各GitHubクライアント関数が呼び出されたことを確認
+    expect(getPullRequestInfo).toHaveBeenCalledWith(expect.any(Object), githubConfig);
+    expect(getChangedFiles).toHaveBeenCalledWith(expect.any(Object), githubConfig);
+    expect(getRepositoryStructure).toHaveBeenCalledWith(expect.any(Object), githubConfig, '', 'main');
+    expect(createIssueComment).toHaveBeenCalledWith(expect.any(Object), githubConfig, expect.any(String));
 
     // createLLMClientのメソッドが呼び出されたことを確認
     expect(createLLMClient).toHaveBeenCalledWith(llmConfig);
