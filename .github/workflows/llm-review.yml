@@ -1,0 +1,109 @@
+name: LLM Pull Request Review
+
+on:
+  workflow_call:
+    inputs:
+      pull_request_number:
+        description: 'プルリクエスト番号'
+        required: true
+        type: number
+      review_depth:
+        description: 'レビューの深さ (basic, detailed, comprehensive)'
+        required: false
+        default: 'detailed'
+        type: string
+      include_positive_feedback:
+        description: 'ポジティブなフィードバックを含めるかどうか'
+        required: false
+        default: true
+        type: boolean
+      review_code_quality:
+        description: 'コード品質をレビューするかどうか'
+        required: false
+        default: true
+        type: boolean
+      review_best_practices:
+        description: 'ベストプラクティスをレビューするかどうか'
+        required: false
+        default: true
+        type: boolean
+      review_security:
+        description: 'セキュリティをレビューするかどうか'
+        required: false
+        default: true
+        type: boolean
+      review_performance:
+        description: 'パフォーマンスをレビューするかどうか'
+        required: false
+        default: true
+        type: boolean
+      review_focus_areas:
+        description: 'レビューの焦点領域（カンマ区切り）'
+        required: false
+        default: ''
+        type: string
+      llm_model:
+        description: 'LLMモデル'
+        required: false
+        default: 'claude-3-sonnet-20240229'
+        type: string
+      llm_temperature:
+        description: 'LLM温度パラメータ'
+        required: false
+        default: 0.7
+        type: number
+      llm_max_tokens:
+        description: 'LLM最大トークン数'
+        required: false
+        default: 4000
+        type: number
+    secrets:
+      github_token:
+        description: 'GitHub APIトークン'
+        required: true
+      anthropic_api_key:
+        description: 'Anthropic APIキー'
+        required: true
+
+jobs:
+  review:
+    name: Review Pull Request
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build
+        run: npm run build
+      
+      - name: Review Pull Request
+        env:
+          GITHUB_TOKEN: ${{ secrets.github_token }}
+          ANTHROPIC_API_KEY: ${{ secrets.anthropic_api_key }}
+          PULL_REQUEST_NUMBER: ${{ inputs.pull_request_number }}
+          REVIEW_DEPTH: ${{ inputs.review_depth }}
+          INCLUDE_POSITIVE_FEEDBACK: ${{ inputs.include_positive_feedback }}
+          REVIEW_CODE_QUALITY: ${{ inputs.review_code_quality }}
+          REVIEW_BEST_PRACTICES: ${{ inputs.review_best_practices }}
+          REVIEW_SECURITY: ${{ inputs.review_security }}
+          REVIEW_PERFORMANCE: ${{ inputs.review_performance }}
+          REVIEW_FOCUS_AREAS: ${{ inputs.review_focus_areas }}
+          LLM_MODEL: ${{ inputs.llm_model }}
+          LLM_TEMPERATURE: ${{ inputs.llm_temperature }}
+          LLM_MAX_TOKENS: ${{ inputs.llm_max_tokens }}
+        run: node dist/index.js
